@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>毎日の習慣</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f6f6f6;color:#222;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
+.app{max-width:520px;min-height:100vh;margin:auto;background:#fff;padding:30px 18px 105px}
+h1{margin:0 0 8px;font-size:29px}
+.date{color:#777;margin-bottom:24px}
+.progress{background:#f0f0f0;border-radius:10px;height:10px;overflow:hidden;margin:10px 0 8px}
+.bar{height:100%;width:0;background:#222;transition:.2s}
+.rate{text-align:right;font-size:14px;color:#777;margin-bottom:22px}
+.habit{display:flex;align-items:center;gap:12px;padding:16px 4px;border-bottom:1px solid #eee}
+.check{width:24px;height:24px;border:2px solid #aaa;border-radius:50%;background:#fff;flex:none}
+.habit.done .check{background:#222;border-color:#222;position:relative}
+.habit.done .check:after{content:"✓";color:#fff;position:absolute;left:4px;top:-2px;font-size:17px}
+.habit.done .name{text-decoration:line-through;color:#aaa}
+.name{flex:1;font-size:17px}
+.delete{border:0;background:none;color:#aaa;font-size:22px;padding:4px 7px}
+.empty{text-align:center;color:#999;padding:45px 10px}
+.add{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);width:min(484px,calc(100% - 36px));padding:16px;border:0;border-radius:14px;background:#222;color:#fff;font-size:17px}
+dialog{border:0;border-radius:18px;padding:22px;width:min(90%,400px);box-shadow:0 10px 40px #0002}
+dialog::backdrop{background:#0005}
+input{width:100%;padding:13px;border:1px solid #ddd;border-radius:10px;font-size:16px;margin:14px 0}
+.actions{display:flex;gap:10px}.actions button{flex:1;padding:12px;border:0;border-radius:10px;font-size:16px}
+.cancel{background:#eee}.save{background:#222;color:#fff}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>毎日の習慣</h1>
+<div class="date" id="date"></div>
+<div class="progress"><div class="bar" id="bar"></div></div>
+<div class="rate" id="rate">0 / 0</div>
+<div id="list"></div>
+</div>
+<button class="add" onclick="openDialog()">＋ 習慣を追加</button>
+
+<dialog id="dlg">
+<h2>習慣を追加</h2>
+<input id="input" placeholder="例：朝に水を飲む" maxlength="80">
+<div class="actions">
+<button class="cancel" onclick="dlg.close()">キャンセル</button>
+<button class="save" onclick="addHabit()">追加</button>
+</div>
+</dialog>
+
+<script>
+const KEY="dailyHabits";
+const DAYKEY="dailyHabitsDate";
+let habits=JSON.parse(localStorage.getItem(KEY)||"[]");
+let savedDate=localStorage.getItem(DAYKEY);
+const todayKey=()=>new Date().toLocaleDateString("ja-JP");
+
+if(savedDate!==todayKey()){
+  habits.forEach(h=>h.done=false);
+  localStorage.setItem(KEY,JSON.stringify(habits));
+  localStorage.setItem(DAYKEY,todayKey());
+}
+
+function save(){
+  localStorage.setItem(KEY,JSON.stringify(habits));
+  localStorage.setItem(DAYKEY,todayKey());
+  render();
+}
+function resetIfNewDay(){
+  const now=todayKey();
+  if(localStorage.getItem(DAYKEY)!==now){
+    habits.forEach(h=>h.done=false);
+    localStorage.setItem(KEY,JSON.stringify(habits));
+    localStorage.setItem(DAYKEY,now);
+    render();
+  }
+}
+function render(){
+  document.getElementById("date").textContent=new Date().toLocaleDateString("ja-JP",{year:"numeric",month:"long",day:"numeric",weekday:"long"});
+  const list=document.getElementById("list");
+  const done=habits.filter(h=>h.done).length;
+  const total=habits.length;
+  const percent=total?Math.round(done/total*100):0;
+  document.getElementById("rate").textContent=`${done} / ${total}　（${percent}%）`;
+  document.getElementById("bar").style.width=percent+"%";
+  list.innerHTML="";
+  if(!habits.length){
+    list.innerHTML='<div class="empty">まだ習慣がありません<br>下のボタンから追加できます。</div>';
+    return;
+  }
+  habits.forEach((h,i)=>{
+    const row=document.createElement("div");
+    row.className="habit"+(h.done?" done":"");
+    row.innerHTML='<button class="check" aria-label="達成"></button><div class="name"></div><button class="delete" aria-label="削除">×</button>';
+    row.querySelector(".name").textContent=h.name;
+    row.querySelector(".check").onclick=()=>{h.done=!h.done;save()};
+    row.querySelector(".delete").onclick=()=>{habits.splice(i,1);save()};
+    list.appendChild(row);
+  });
+}
+function openDialog(){input.value="";dlg.showModal();setTimeout(()=>input.focus(),100)}
+function addHabit(){
+  const name=input.value.trim();
+  if(!name)return;
+  habits.push({name,done:false});
+  dlg.close();save();
+}
+input.addEventListener("keydown",e=>{if(e.key==="Enter")addHabit()});
+render();
+setInterval(resetIfNewDay,30000);
+</script>
+</body>
+</html>
